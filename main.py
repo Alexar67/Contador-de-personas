@@ -14,10 +14,10 @@ def draw_results(image, image_results, show_id=False):
         cls = int(box.cls)
         conf = float(box.conf)
         label = f"{model.names[cls]} {round(conf*100, 2)}"
-        if show_id:
+        if show_id and box.id is not None:  # Check if box.id is not None before using it
             label += f' id:{int(box.id)}'
         if cls == 0 and conf >= 0.35:
-            annotator.box_label(b, label, color=colors[int(box.id):int(box.id)+2])
+            annotator.box_label(b, label, color=colors[int(box.id):int(box.id)+2] if box.id is not None else None)
     image_annotated = annotator.result()
     return image_annotated
 
