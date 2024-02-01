@@ -13,6 +13,8 @@ colors = random.choices(range(256), k=1000)
 def draw_results(image, image_results, areas, show_id=False):
     annotator = Annotator(image.copy())
     
+    people_in_areas = {area_id: 0 for area_id in areas.keys()}  # Inicializar el contador para cada área
+    
     for result in image_results:
         for box in result.boxes:
             b = box.xyxy[0]
@@ -26,8 +28,16 @@ def draw_results(image, image_results, areas, show_id=False):
             person_point = Point(box.xyxy[0][0], box.xyxy[0][1])
             inside_area = any(area.contains(person_point) for area in areas.values())
             
-            if cls == 0 and conf >= 0.35 and inside_area:
+            if cls == 0 and conf >= 0.35:
                 annotator.box_label(b, label, color=colors[int(box.id):int(box.id)+2] if box.id is not None else None)
+                
+                # Incrementar el contador solo si la persona está dentro de alguna área
+                for area_id, area_polygon in areas.items():
+                    if inside_area:
+                        people_in_areas[area_id] += 1
+    
+    for area_id, count in people_in_areas.items():
+        print(f"People in Area {area_id}: {count}")
     
     image_annotated = annotator.result()
     return image_annotated
