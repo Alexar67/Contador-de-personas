@@ -10,6 +10,7 @@ import random
 from shapely.geometry import Polygon, Point
 from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator
+from tkinter import filedialog
 
 customtkinter.set_appearance_mode('dark')
 model = YOLO("models/yolov8n.pt", task="detect")
@@ -43,7 +44,7 @@ class App(customtkinter.CTk):
                                 people_in_areas[area_id].append(int(box.id))
         
         for area_id, ids in people_in_areas.items():
-            print(f"People in Area {area_id}: {len(ids)} with IDs {ids}")
+            print(f"Personas en el área {area_id}: {len(ids)} IDs: {ids}")
         
         image_annotated = annotator.result()
         return image_annotated
@@ -87,8 +88,6 @@ class App(customtkinter.CTk):
                     person_point = Point(box.xyxy[0][0], box.xyxy[0][1])
                     if area_polygon.contains(person_point):
                         people_in_area += 1
-            
-            print(f"People in Area {area_id}: {people_in_area}")
 
     def camara(self):
 
@@ -126,7 +125,7 @@ class App(customtkinter.CTk):
                 self.visualize_camera()
             elif k == ord('n'):
                 index += 1
-                self.camera_index = 'Area' + f"--{index}"
+                self.camera_index = 'Area' + f"-{index}"
                 self.points_cameras[self.camera_index] = []
             elif k == 13:  # Enter key
                 areas_to_count = {k: Polygon(v) for k, v in self.points_cameras.items()}
@@ -163,6 +162,184 @@ class App(customtkinter.CTk):
         self.cap.release()
         cv2.destroyAllWindows()
 
+#**************************************************VIDEO********************************************
+    def reproducir_video(self):
+        global video
+        if video:
+            self.label_info_video.configure(text=f"Reproduciendo: {os.path.basename(video)}")
+            os.startfile(video)
+
+    def seleccionar_video(self):
+        global video, video_mostrar
+
+        ruta_video = filedialog.askopenfilename(filetypes=[("Videos", "*.mp4;*.avi;*.webm")])
+
+        if ruta_video:
+            video = ruta_video  # Almacena la ruta del video seleccionado
+            self.label_info_video.configure(text=f"Video seleccionado: {os.path.basename(video)}")
+            self.third_frame_button_2.configure(state="normal")
+
+    def draw_results_video(self, image, image_results, areas, show_id=True):
+        annotator = Annotator(image.copy())
+        
+        people_in_areas = {area_id: [] for area_id in areas.keys()}  # Inicializar la lista de IDs para cada área
+        
+        for result in image_results:
+            for box in result.boxes:
+                b = box.xyxy[0]
+                cls = int(box.cls)
+                conf = float(box.conf)
+                label = f"{model.names[cls]} {round(conf*100, 2)}"
+                if show_id and box.id is not None:  
+                    label += f' id:{int(box.id)}'
+                
+                    # Check if the detected person is inside any of the selected areas
+                    person_point = Point(box.xyxy[0][0], box.xyxy[0][1])
+                    inside_area = any(area.contains(person_point) for area in areas.values())
+                    
+                    if cls == 0 and conf >= 0.35:
+                        annotator.box_label(b, label, color=colors[int(box.id):int(box.id)+2] if box.id is not None else None)
+                        
+                        # Agregar la ID a la lista solo si la persona está dentro de alguna área
+                        for area_id, area_polygon in areas.items():
+                            if inside_area:
+                                people_in_areas[area_id].append(int(box.id))
+        
+        for area_id, ids in people_in_areas.items():
+            print(f"Personas en el {area_id}: {len(ids)}    IDs: {ids}")
+        
+        image_annotated = annotator.result()
+        return image_annotated
+
+    def get_viz_video(self, cam, points):
+        """Función para obtener visualización con polígonos"""
+        cam_vis = cam.copy()
+        alpha = 0.5
+        overlay = self.camera_image_original.copy()
+        for camid in self.points_cameras.keys():
+            pts = np.array(self.points_cameras[camid], np.int32)
+            pts = pts.reshape((-1, 1, 2))
+            cv2.polylines(overlay, [pts], True, (0, 0, 255), thickness=3)
+        cv2.addWeighted(overlay, alpha, cam_vis, 1 - alpha, 0, cam_vis)
+        return cam_vis
+
+    def visualize_camera_video(self):
+        """Función para visualizar la cámara"""
+        camera_image_visualization = self.get_viz_video(self.camera_image_original, self.points_cameras)
+        cv2.imshow('video', camera_image_visualization)
+
+    def mouse_camera_video(self, event, x, y, flags, param):
+        """Función ligada a la visualización de la cámara para realizar callbacks"""
+        if event == cv2.EVENT_LBUTTONDOWN: 
+            if not self.camera_index in self.points_cameras.keys():
+                self.points_cameras[self.camera_index] = [[x, y]]
+            else:
+                self.points_cameras[self.camera_index].append([x, y])
+            self.visualize_camera_video()
+
+    def count_people_in_areas_video(self, frame, areas):
+        results_track = model.track(frame, conf=0.40, classes=0, tracker="botsort.yaml", persist=True, verbose=False)
+        
+        for area_id, area_points in areas.items():
+            area_polygon = Polygon(area_points)
+            people_in_area = 0
+            
+            for result in results_track:
+                for box in result.boxes:
+                    person_point = Point(box.xyxy[0][0], box.xyxy[0][1])
+                    if area_polygon.contains(person_point):
+                        people_in_area += 1
+
+    def video(self):
+        global video
+        video_path = video  # Cambia a la ruta de tu video
+        cap = cv2.VideoCapture(video_path)
+        areas_to_count = {}  # Mover fuera del bucle
+        areas_to_draw = []   # Nueva lista para almacenar áreas dibujadas
+
+        count_people = False
+
+        # Crear la ventana con un nombre específico
+        cv2.namedWindow('video', cv2.WINDOW_NORMAL)
+
+        # Especificar la posición y el tamaño de la ventana
+        cv2.moveWindow('video', 100, 100)  # Cambia los valores según tus necesidades
+        cv2.resizeWindow('video', 800, 600)  # Cambia los valores según tus necesidades
+
+        # Obtener el tamaño del frame del video
+        camw_ = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        camh_ = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        # Leer el primer frame para la selección de áreas
+        ret, self.camera_image_original = cap.read()
+        if not ret:
+            print("Error al leer el primer frame del video.")
+            exit()
+
+        cv2.namedWindow('video', cv2.WINDOW_NORMAL)
+        cv2.setMouseCallback('video', self.mouse_camera_video)
+
+        index = 0
+        self.camera_index = 'Area' + f"-{index}"
+        self.points_cameras = {}
+        areas_to_count = {}
+        count_people = False
+
+        while True:
+            self.visualize_camera_video()
+
+            k = cv2.waitKey(1)
+            if k == ord('q'):
+                break
+            elif k == ord('c'):
+                if len(self.points_cameras[self.camera_index]) > 0:
+                    self.points_cameras[self.camera_index] = self.points_cameras[self.camera_index][:-1]
+                else:
+                    print("La cámara no tiene más puntos")
+                self.visualize_camera_video()
+            elif k == ord('n'):
+                index += 1
+                self.camera_index = 'Area' + f"-{index}"
+                self.points_cameras[self.camera_index] = []
+            elif k == 13:  # Enter key
+                areas_to_count = {k: Polygon(v) for k, v in self.points_cameras.items()}  # Convert points to Polygons
+                areas_to_draw = list(areas_to_count.values())  # Almacena las áreas dibujadas
+                count_people = True
+
+            if count_people:
+                break
+
+        # Continuar con la detección de personas en las áreas seleccionadas
+        while True:
+            ret, self.camera_image_original = cap.read()
+            if not ret:
+                break
+
+            self.visualize_camera_video()
+
+            self.count_people_in_areas_video(self.camera_image_original, areas_to_count)
+            image_annotated = self.draw_results_video(self.camera_image_original, model(self.camera_image_original), areas_to_count)
+            
+            # Dibujar las áreas seleccionadas continuamente
+            for area_id, area_polygon in areas_to_count.items():
+                pts = np.array(area_polygon.exterior.coords, np.int32)
+                pts = pts.reshape((-1, 1, 2))
+                cv2.polylines(image_annotated, [pts], True, (0, 255, 0), thickness=2)
+                
+                # Agregar texto de identificación cerca del área
+                centroid = np.array(area_polygon.centroid.coords[0], np.int32)
+                cv2.putText(image_annotated, f' {area_id}', tuple(centroid), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+
+            cv2.imshow('video', image_annotated)
+
+            k = cv2.waitKey(1)
+            if k == ord('q'):
+                break
+
+        cap.release()
+        cv2.destroyAllWindows()
+
+#********************************************VENTANA PRINCIPAL*************************************************************
     width = 700
     height = 450
     
@@ -250,23 +427,45 @@ class App(customtkinter.CTk):
 
         # Frame para la detección de personas en un video *************************************************************************************+
         self.third_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
-        self.third_frame.grid_rowconfigure(0, weight=1)
+        #self.third_frame.grid_rowconfigure(0, weight=1)
         self.third_frame.grid_columnconfigure(0, weight=1)
 
-        self.video_mostrar = None
+        # Configuración de la etiqueta del título
+        self.label_title = customtkinter.CTkLabel(self.third_frame, text="Conteo de personas de un video", anchor="center", justify="center")
+        self.label_title.grid(row=1, column=0, padx=20, pady=(10, 0), columnspan=2)
 
+        # Configuración de la etiqueta de las instrucciones
+        self.label_instructions = customtkinter.CTkLabel(self.third_frame, text="Instrucciones:", anchor="w", justify="center")
+        self.label_instructions.grid(row=2, column=0, padx=20, pady=(10, 0), columnspan=2)
+
+        # Añadir las instrucciones
+        instructions2 = [
+            "- Utiliza los botones 'Seleccionar video' y 'Reproducir video' para elegir el archivo de video y verificar que sea el correcto.",
+            "- Con el botón 'Iniciar' se mostrará un fotograma del video para que puedas seleccionar las áreas de interés.",
+            "- Utiliza clics izquierdos sucesivos para marcar las áreas deseadas.",
+            "- En caso de trazos incorrectos, corrige presionando la tecla 'c'.",
+            "- Para seleccionar una nueva área, presiona la tecla 'n'.",
+            "- Una vez que hayas marcado todas las áreas necesarias, presiona 'Enter' para iniciar la identificación y conteo de personas y 'q'para cerrar."
+        ]
+
+        # Agregar las instrucciones al texto de la etiqueta
+        instructions_text = "\n\n".join(instructions2)
+        self.label_pasos = customtkinter.CTkLabel(self.third_frame, text=instructions_text, anchor="w", justify="left", wraplength=400)
+        self.label_pasos.grid(row=3, column=0, padx=30, pady=(10, 0), columnspan=2)
+
+        # Nuevas configuraciones para la interfaz
         self.label_info_video = customtkinter.CTkLabel(self.third_frame, text="Seleccione un video ", anchor="w")
-        self.label_info_video.grid(row=1, column=0, padx=20, pady=(10, 0))
+        self.label_info_video.grid(row=4, column=0, padx=20, pady=(10, 0), columnspan=2)
 
-        self.third_frame_button_1 = customtkinter.CTkButton(self.third_frame, text="Seleccionar video")
-        self.third_frame_button_1.grid(row=2, column=0, padx=20, pady=(20,0), sticky="ew")
+        self.third_frame_button_1 = customtkinter.CTkButton(self.third_frame, text="Seleccionar video", command=self.seleccionar_video)
+        self.third_frame_button_1.grid(row=5, column=0, padx=(50, 10), pady=(10, 0), sticky="ew")
 
-        self.third_frame_button_2 = customtkinter.CTkButton(self.third_frame)
-        self.third_frame_button_2.grid(row=3, column=0, padx=20, pady=(20,20), sticky="ew")
+        self.third_frame_button_2 = customtkinter.CTkButton(self.third_frame, command=self.reproducir_video)
+        self.third_frame_button_2.grid(row=5, column=1, padx=(0, 50), pady=(10, 0), sticky="ew")
         self.third_frame_button_2.configure(state="disabled", text="Reproducir video")
 
-        self.third_frame_button_3 = customtkinter.CTkButton(self.third_frame, text="Enviar video")
-        self.third_frame_button_3.grid(row=3, column=1, padx=20, pady=20, sticky="nsew")
+        self.third_frame_button_3 = customtkinter.CTkButton(self.third_frame, text="Iniciar", command=self.video)
+        self.third_frame_button_3.grid(row=6, column=0, padx=50, pady=(10, 0), sticky="ew", columnspan=2)
 
         # audio frame **************************************************************************************
         self.cuarto_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
@@ -313,7 +512,6 @@ class App(customtkinter.CTk):
 
     def change_appearance_mode_event(self, new_appearance_mode):
         customtkinter.set_appearance_mode(new_appearance_mode)
-
 
 if __name__ == "__main__":
     app = App()
