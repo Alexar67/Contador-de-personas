@@ -1,8 +1,6 @@
 # Contador de Personas
 
-Esta es una aplicación desarrollada en Python utilizando la biblioteca Tkinter para la interfaz gráfica y otras bibliotecas como OpenCV, Pillow y Shapely para la detección y conteo de personas en imágenes y videos.
-
-Esta aplicación esta realizada con **CustomTkinter**
+Esta es una aplicación desarrollada en Python utilizando **CustomTkinter** que es una biblioteca de interfaz de usuario de Python basada en **Tkinter**, la biblioteca Tkinter para la interfaz gráfica y otras bibliotecas como OpenCV, Pillow y Shapely para la detección y conteo de personas en imágenes y videos.
 
 **CustomTkinter** es una biblioteca de interfaz de usuario de Python basada en Tkinter, que proporciona widgets nuevos, modernos y totalmente personalizables. Se crean y utilizan como widgets normales de Tkinter y también se pueden utilizar en combinación con elementos normales de Tkinter. Los widgets y los colores de las ventanas se adaptan a la apariencia del sistema o al modo configurado manualmente ('claro', 'oscuro'), y todos los widgets y ventanas de CustomTkinter admiten la escala HighDPI (Windows, macOS). Con CustomTkinter obtendrás una apariencia consistente y moderna en todas las plataformas de escritorio (Windows, macOS, Linux).
 
@@ -22,21 +20,25 @@ Esta aplicación esta realizada con **CustomTkinter**
 Puedes instalar las dependencias utilizando pip:
 
 **CustomTkinter**
-
 ```
 pip3 install customtkinter
 ```
-
 Puede encontrar la documentación oficial de CustomTkinter aquí:
 
 **➡️ https://customtkinter.tomschimansky.com/documentation**
 
+**Demás dependencias:**
 ```
-pip install numpy opencv-python-headless shapely 'git+https://github.com/ultralytics/yolov5.git'
+pip install customtkinter
+pip install Pillow
+pip install opencv-python-headless
+pip install numpy
+pip install shapely
+pip install 'ultralytics>=0.6.7'
 ```
 ## Ejecución de la Aplicación
 
-Para ejecutar la aplicación, simplemente ejecuta el script Python `contador_personas.py`:
+Para ejecutar la aplicación, simplemente ejecuta el script Python `Contador_personas.py`
 
 ## Funcionalidades
 
