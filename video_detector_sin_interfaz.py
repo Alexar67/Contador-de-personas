@@ -1,5 +1,5 @@
+# Importación de módulos necesarios
 import cv2
-import json
 import numpy as np
 from shapely.geometry import Polygon, Point
 from ultralytics import YOLO

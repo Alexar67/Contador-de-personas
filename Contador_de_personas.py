@@ -401,10 +401,10 @@ class App(customtkinter.CTk):
         self.home_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Información",fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),image=self.chat_image, anchor="w", command=self.home_button_event)
         self.home_button.grid(row=1, column=0, sticky="ew")
 
-        self.frame_2_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Video Detección", fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),image=self.imagen_image, anchor="w", command=self.frame_2_button_event) 
+        self.frame_2_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Contador en tiempo real", fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),image=self.imagen_image, anchor="w", command=self.frame_2_button_event) 
         self.frame_2_button.grid(row=2, column=0, sticky="ew")
 
-        self.frame_3_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Subir video",fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),image=self.audio_image, anchor="w", command=self.frame_3_button_event)
+        self.frame_3_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Contador de un video",fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),image=self.audio_image, anchor="w", command=self.frame_3_button_event)
         self.frame_3_button.grid(row=3, column=0, sticky="ew")
         
         #Apariencia de la ventana
