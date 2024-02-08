@@ -13,8 +13,6 @@ colors = random.choices(range(256), k=1000)
 def draw_results(image, image_results, areas, show_id=True):
     annotator = Annotator(image.copy())
     
-    people_in_areas = {area_id: [] for area_id in areas.keys()}
-    
     for result in image_results:
         for box in result.boxes:
             b = box.xyxy[0]
@@ -23,19 +21,9 @@ def draw_results(image, image_results, areas, show_id=True):
             label = f"{model.names[cls]} {round(conf*100, 2)}"
             if show_id and box.id is not None:
                 label += f' id:{int(box.id)}'
-            
-                person_point = Point(box.xyxy[0][0], box.xyxy[0][1])
-                inside_area = any(area.contains(person_point) for area in areas.values())
                 
                 if cls == 0 and conf >= 0.35:
                     annotator.box_label(b, label, color=colors[int(box.id):int(box.id)+2] if box.id is not None else None)
-                    
-                    for area_id, area_polygon in areas.items():
-                        if inside_area:
-                            people_in_areas[area_id].append(int(box.id))
-    
-    for area_id, ids in people_in_areas.items():
-        print(f"People in Area {area_id}: {len(ids)} with IDs {ids}")
     
     image_annotated = annotator.result()
     return image_annotated
@@ -69,23 +57,31 @@ def mouse_camera(event, x, y, flags, param):
 
 def count_people_in_areas(frame, areas):
     results_track = model.track(frame, conf=0.40, classes=0, tracker="botsort.yaml", persist=True, verbose=False)
-    
+    text_y_position = 20
+
     for area_id, area_points in areas.items():
         area_polygon = Polygon(area_points)
         people_in_area = 0
+        people_ids = []  # Lista para almacenar las IDs de las personas en el área
         
         for result in results_track:
             for box in result.boxes:
                 person_point = Point(box.xyxy[0][0], box.xyxy[0][1])
                 if area_polygon.contains(person_point):
                     people_in_area += 1
+                    if box.id is not None:
+                        people_ids.append(int(box.id))  # Agregar la ID de la persona
+                    
+        print(f"Personas en el {area_id}: {people_in_area}   IDs: {people_ids}")
+        # Mostrar el recuento de personas y sus IDs en la pantalla del video
+        text = f"Personas en el {area_id}: {people_in_area}   IDs: {people_ids}"
+        cv2.putText(frame, text, (10, text_y_position), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
         
-        print(f"People in Area {area_id}: {people_in_area}")
+        # Incrementar la posición vertical para el próximo área
+        text_y_position += 20
+
 
 cap = cv2.VideoCapture(0)  # Usar la cámara del computador (puede necesitar ajustes dependiendo del número de cámara)
-
-camw_ = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-camh_ = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 ret, camera_image_original = cap.read()
 if not ret:
@@ -98,7 +94,7 @@ cv2.resizeWindow('video', 800, 600)  # Cambia los valores según tus necesidades
 cv2.setMouseCallback('video', mouse_camera)
 
 index = 0
-camera_index = 'Area' + f"--{index}"
+camera_index = 'Area' + f"-{index}"
 points_cameras = {}
 areas_to_count = {}
 count_people = False
@@ -117,7 +113,7 @@ while True:
         visualize_camera()
     elif k == ord('n'):
         index += 1
-        camera_index = 'Area' + f"--{index}"
+        camera_index = 'Area' + f"-{index}"
         points_cameras[camera_index] = []
     elif k == 13:  # Enter key
         areas_to_count = {k: Polygon(v) for k, v in points_cameras.items()}
@@ -143,7 +139,7 @@ while True:
         cv2.polylines(image_annotated, [pts], True, (0, 255, 0), thickness=2)
         
         centroid = np.array(area_polygon.centroid.coords[0], np.int32)
-        cv2.putText(image_annotated, f'Area {area_id}', tuple(centroid), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+        cv2.putText(image_annotated, f' {area_id}', tuple(centroid), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
 
     cv2.imshow('video', image_annotated)
 
