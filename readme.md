@@ -45,7 +45,7 @@ pip install shapely
 Para ejecutar la aplicación, simplemente ejecute el script Python `Contador_de_personas.py`.
 
 ***Nota:***
-Los demás codigos: `camara_detector_sin interfaz` y `video_detector_sin interfaz` son los códigos por separados sin interfaz y no son necesarios para coprrer el programa principal `Contador_de_personas.py`.
+Los demás codigos: `camara_detector_sin interfaz` y `video_detector_sin interfaz` son los códigos por separados sin interfaz y no son necesarios para correr el programa principal `Contador_de_personas.py`.
 
 ## Funcionalidades
 
