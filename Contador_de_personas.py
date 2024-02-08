@@ -1,3 +1,4 @@
+# Importación de módulos necesarios
 import customtkinter
 import os
 from PIL import Image
@@ -9,15 +10,22 @@ from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator
 from tkinter import filedialog
 
+# Configuración de la apariencia de la interfaz personalizada
 customtkinter.set_appearance_mode('light')
 
+# Definición de la clase principal de la aplicación
 class App(customtkinter.CTk):
-    # Funciones necesarias para el conteo de personas en tiempo real con la cámara del computador
-    def camara(self):
-        model = YOLO("models/yolov8n.pt", task="detect")
 
+    #********************************************* Función para contador de personas en tiempo real **************************************
+
+    # Funcipon principal para iniciar el contador de personas en tiempo real
+    def camara(self):
+        # Cargar el modelo YOLO para detección de objetos
+        model = YOLO("models/yolov8n.pt", task="detect")
+        # Colores aleatorios para etiquetar las personas detectadas
         colors = random.choices(range(256), k=1000)
 
+        # Función para dibujar los resultados de detección en la imagen
         def draw_results(image, image_results, areas, show_id=True):
             annotator = Annotator(image.copy())
             
@@ -29,14 +37,18 @@ class App(customtkinter.CTk):
                     label = f"{model.names[cls]} {round(conf*100, 2)}"
                     if show_id and box.id is not None:
                         label += f' id:{int(box.id)}'
-                        
+
+                        # Dibujar un cuadro alrededor de la persona detectada
                         if cls == 0 and conf >= 0.35:
                             annotator.box_label(b, label, color=colors[int(box.id):int(box.id)+2] if box.id is not None else None)
             
+            # Obtener la imagen con las anotaciones
             image_annotated = annotator.result()
             return image_annotated
 
+        # Función para visualizar la cámara con las áreas seleccionadas
         def get_viz(cam, points_cameras):
+            """Función para obtener visualización con polígonos"""
             cam_vis = cam.copy()
             alpha = 0.5
             overlay = cam.copy()
@@ -47,6 +59,7 @@ class App(customtkinter.CTk):
             cv2.addWeighted(overlay, alpha, cam_vis, 1 - alpha, 0, cam_vis)
             return cam_vis
 
+        # Función para visualizar la imagen de la cámara
         def visualize_camera():
             ret, camera_image_original = cap.read()
             if not ret:
@@ -55,6 +68,7 @@ class App(customtkinter.CTk):
             camera_image_visualization = get_viz(camera_image_original, points_cameras)
             cv2.imshow('video', camera_image_visualization)
 
+        # Función de detección del evento del mouse en la cámara
         def mouse_camera(event, x, y, flags, param):
             if event == cv2.EVENT_LBUTTONDOWN: 
                 if not camera_index in points_cameras.keys():
@@ -63,6 +77,7 @@ class App(customtkinter.CTk):
                     points_cameras[camera_index].append([x, y])
                 visualize_camera()
 
+        # Función para contar personas dentro de las áreas seleccionadas
         def count_people_in_areas(frame, areas):
             results_track = model.track(frame, conf=0.40, classes=0, tracker="botsort.yaml", persist=True, verbose=False)
             text_y_position = 20
@@ -80,25 +95,25 @@ class App(customtkinter.CTk):
                             if box.id is not None:
                                 people_ids.append(int(box.id))  # Agregar la ID de la persona
                             
+                # Mostrar el recuento de personas y sus IDs en la pantalla del video y en concola            
                 print(f"Personas en el {area_id}: {people_in_area}   IDs: {people_ids}")
-                # Mostrar el recuento de personas y sus IDs en la pantalla del video
                 text = f"Personas en el {area_id}: {people_in_area}   IDs: {people_ids}"
                 cv2.putText(frame, text, (10, text_y_position), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
                 
                 # Incrementar la posición vertical para el próximo área
                 text_y_position += 20
 
-
         cap = cv2.VideoCapture(0)  # Usar la cámara del computador (puede necesitar ajustes dependiendo del número de cámara)
 
+        # Capturar la imagen inicial de la cámara
         ret, camera_image_original = cap.read()
         if not ret:
             print("Error al leer la cámara.")
             exit()
 
+        # Configuración de la ventana de video y del evento del mouse
         cv2.namedWindow('video', cv2.WINDOW_NORMAL)
-        # Especificar la posición y el tamaño de la ventana
-        cv2.resizeWindow('video', 800, 600)  # Cambia los valores según tus necesidades
+        cv2.resizeWindow('video', 800, 600)  
         cv2.setMouseCallback('video', mouse_camera)
 
         index = 0
@@ -107,6 +122,7 @@ class App(customtkinter.CTk):
         areas_to_count = {}
         count_people = False
 
+        # Bucle para seleccionar áreas de interés en la cámara
         while True:
             visualize_camera()
 
@@ -130,7 +146,8 @@ class App(customtkinter.CTk):
 
             if count_people:
                 break
-
+        
+        # Bucle para detectar y contar personas en tiempo real, ademas indica el nombre del área en cada área
         while True:
             ret, camera_image_original = cap.read()
             if not ret:
@@ -155,17 +172,23 @@ class App(customtkinter.CTk):
             if k == ord('q'):
                 break
 
+        # Liberar la cámara y cerrar todas las ventanas        
         cap.release()
         cv2.destroyAllWindows()
 
+    #********************************************* Función para contador de personas de un video **************************************
+
+    # Funcipon principal para iniciar el contador de personas en un video
     def video(self):
+        # Cargar el modelo YOLO para detección de objetos
         model = YOLO("models/yolov8n.pt", task="detect")
-
+        # Colores aleatorios para etiquetar las personas detectadas
         colors = random.choices(range(256), k=1000)
-
-        areas_to_count = {}  # Mover fuera del bucle
-        areas_to_draw = []   # Nueva lista para almacenar áreas dibujadas
-
+        # Diccionario para almacenar las áreas a contar
+        areas_to_count = {}  
+        # Lista para almacenar las áreas dibujadas
+        areas_to_draw = [] 
+        # Bandera para controlar el conteo de personas
         count_people = False
 
         # Crear la ventana con un nombre específico
@@ -175,6 +198,7 @@ class App(customtkinter.CTk):
         cv2.moveWindow('video', 100, 100)  # Cambia los valores según tus necesidades
         cv2.resizeWindow('video', 800, 600)  # Cambia los valores según tus necesidades
 
+        # Función para dibujar los resultados de detección en la imagen
         def draw_results(image, image_results, areas, show_id=True):
             annotator = Annotator(image.copy())
             
@@ -187,9 +211,11 @@ class App(customtkinter.CTk):
                     if show_id and box.id is not None:  
                         label += f' id:{int(box.id)}'
                         
+                        # Dibujar un cuadro alrededor de la persona detectada
                         if cls == 0 and conf >= 0.35:
                             annotator.box_label(b, label, color=colors[int(box.id):int(box.id)+2] if box.id is not None else None)
-            
+
+            # Obtener la imagen con las anotaciones
             image_annotated = annotator.result()
             return image_annotated
 
@@ -219,6 +245,7 @@ class App(customtkinter.CTk):
                     points_cameras[camera_index].append([x, y])
                 visualize_camera()
 
+        # Función para contar personas dentro de las áreas seleccionadas
         def count_people_in_areas(frame, areas):
             results_track = model.track(frame, conf=0.40, classes=0, tracker="botsort.yaml", persist=True, verbose=False)
             text_y_position = 20
@@ -235,16 +262,18 @@ class App(customtkinter.CTk):
                             people_in_area += 1
                             if box.id is not None:
                                 people_ids.append(int(box.id))  # Agregar la ID de la persona
-                            
+
+                # Mostrar el recuento de personas y sus IDs en la pantalla del video y en consola            
                 print(f"Personas en el {area_id}: {people_in_area}   IDs: {people_ids}")
-                # Mostrar el recuento de personas y sus IDs en la pantalla del video
                 text = f"Personas en el {area_id}: {people_in_area}   IDs: {people_ids}"
                 cv2.putText(frame, text, (10, text_y_position), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
                 
                 # Incrementar la posición vertical para el próximo área
                 text_y_position += 20
 
-        video_path = "video.webm"  # Cambia a la ruta de tu video
+        global video
+        # Ruta del video a procesar
+        video_path = video  
         cap = cv2.VideoCapture(video_path)
 
         # Leer el primer frame para la selección de áreas
@@ -312,39 +341,41 @@ class App(customtkinter.CTk):
             k = cv2.waitKey(1)
             if k == ord('q'):
                 break
-
+        # Liberar la cámara y cerrar todas las ventanas            
         cap.release()
         cv2.destroyAllWindows()
 
-
+    # Función para reproducir el video seleccionado
     def reproducir_video(self):
         global video
         if video:
             self.label_info_video.configure(text=f"Reproduciendo: {os.path.basename(video)}")
             os.startfile(video)
 
+    # Función para seleccionar un video de la galería
     def seleccionar_video(self):
         global video
-
         ruta_video = filedialog.askopenfilename(filetypes=[("Videos", "*.mp4;*.avi;*.webm")])
-
         if ruta_video:
             video = ruta_video  # Almacena la ruta del video seleccionado
             self.label_info_video.configure(text=f"Video seleccionado: {os.path.basename(video)}")
             self.third_frame_button_2.configure(state="normal")
 
 #********************************************VENTANA PRINCIPAL*************************************************************
+    # Dimensiones predeterminadas de la ventana principal
     width = 700
     height = 450
     
+    # Método de inicialización de la clase
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
+         # Configuración inicial de la ventana principal
         self.title("Contador de Personas")
         self.geometry(f"{self.width}x{self.height}")
         self.resizable(False, False)
     
-        # set grid layout 1x2
+        # Configuración del diseño de cuadrícula: 1 fila, 2 columnas
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
@@ -362,11 +393,11 @@ class App(customtkinter.CTk):
         self.navigation_frame.grid(row=0, column=0, sticky="nsew")
         self.navigation_frame.grid_rowconfigure(7, weight=1)
 
-        #Crear el label del texto Menú de opciones en el frame de navegación
+        # Creación y configuración del label en el frame de navegación
         self.navigation_frame_label = customtkinter.CTkLabel(self.navigation_frame, text="  Menú de opciones", image=self.logo_image, compound="left", font=customtkinter.CTkFont(size=15, weight="bold"))
         self.navigation_frame_label.grid(row=0, column=0, padx=20, pady=20)
 
-        #Opciones del menú principal
+        # Creación de botones en el frame de navegación
         self.home_button = customtkinter.CTkButton(self.navigation_frame, corner_radius=0, height=40, border_spacing=10, text="Información",fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),image=self.chat_image, anchor="w", command=self.home_button_event)
         self.home_button.grid(row=1, column=0, sticky="ew")
 
@@ -380,16 +411,18 @@ class App(customtkinter.CTk):
         self.appearance_mode_menu = customtkinter.CTkOptionMenu(self.navigation_frame, values=["Light", "Dark", "System"],command=self.change_appearance_mode_event)
         self.appearance_mode_menu.grid(row=7, column=0, padx=20, pady=20, sticky="s")
 
-        #*********************************Frame de información de la App ********************************************************
-        #Creación y configuraciones del frame de información
+        #************************************* Frame de información de la App ********************************************************
+
+        # Creación del frame de información
         self.home_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
         self.home_frame.grid_columnconfigure(0, weight=1)
 
-        #Crear y agregar un label en home frame para agragar la imagen de la caratula
+        # Creación del label en el frame de información para mostrar la imagen de la carátula
         self.home_frame_large_image_label = customtkinter.CTkLabel(self.home_frame, text="", image=self.caratula_image)
         self.home_frame_large_image_label.grid(row=0, column=0, padx=20, pady=10)
 
-        #*********************************Frame para el Contador de personas en tiempo real ************************************************
+        #********************************* Frame para el Contador de personas en tiempo real ************************************************
+
         #Creación y configuraciones del frame Contador de personas en tiempo real
         self.second_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
 
@@ -417,10 +450,12 @@ class App(customtkinter.CTk):
         self.label_pasos = customtkinter.CTkLabel(self.second_frame, text=instructions_text, anchor="w", justify="left", wraplength=400)
         self.label_pasos.grid(row=3, column=0, padx=50, pady=(10, 0))
 
+        # Creación y configuración del botón rara abrir la cámara
         self.second_frame_button_1 = customtkinter.CTkButton(self.second_frame, text="Abrir camara", command=self.camara)
         self.second_frame_button_1.grid(row=5, column=0, padx=150, pady=(50,0), sticky="ew", columnspan=2)
 
-        #***************************Frame para el Contador de personas de un video *****************************************************
+        #************************************ Frame para el Contador de personas de un video *****************************************************
+
         #Creación y configuraciones del frame Contador de personas de un video
         self.third_frame = customtkinter.CTkFrame(self, corner_radius=0, fg_color="transparent")
         self.third_frame.grid_columnconfigure(0, weight=1)
@@ -465,8 +500,9 @@ class App(customtkinter.CTk):
         # Frame por defecto home que es el de información
         self.select_frame_by_name("home")
 
+    # Función para seleccionar un frame según el nombre dado
     def select_frame_by_name(self, name):
-        # Establecer el color del botón para el botón seleccionado
+        # Configuración de color de botones según el frame seleccionado
         self.home_button.configure(fg_color=("gray75", "gray25") if name == "home" else "transparent")
         self.frame_2_button.configure(fg_color=("gray75", "gray25") if name == "frame_2" else "transparent")
         self.frame_3_button.configure(fg_color=("gray75", "gray25") if name == "frame_3" else "transparent")
@@ -485,7 +521,7 @@ class App(customtkinter.CTk):
         else:
             self.third_frame.grid_forget()
 
-    # Funciones ligadas a las las opcionees del menú de opciones
+    # Manejadores de eventos para los botones del menú de opciones
     def home_button_event(self):
         self.select_frame_by_name("home")
 
@@ -495,10 +531,11 @@ class App(customtkinter.CTk):
     def frame_3_button_event(self):
         self.select_frame_by_name("frame_3")
 
-    #Funciones para la apariencia de la app Dark Light o System
+    # Función para cambiar la apariencia de la aplicación (modo claro, oscuro o sistema)
     def change_appearance_mode_event(self, new_appearance_mode):
         customtkinter.set_appearance_mode(new_appearance_mode)
 
+# Punto de entrada principal de la aplicación
 if __name__ == "__main__":
     app = App()
     app.mainloop()
